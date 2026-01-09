@@ -1,0 +1,169 @@
+:root {
+  --emerald-green: #284139;
+  --wasabi: #809076;
+  --creased-khaki: #F8D794;
+  --egyptian-earth: #B86B30;
+  --noir-de-vigne: #111419;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: var(--noir-de-vigne);
+  color: var(--creased-khaki); 
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.container {
+  display: flex;
+  gap: 32px;
+  padding: 24px;
+  align-items: flex-start;
+}
+
+.chessboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.file-upload-container,
+.analysis-panel {
+  background-color: var(--wasabi);
+  color: var(--noir-de-vigne);
+  border-radius: 14px;
+  padding: 18px;
+  min-width: 320px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.file-upload-container {
+  margin-right: 12px;
+}
+
+.file-upload-container h2 {
+  margin-top: 0;
+}
+
+.file-upload-container input[type="file"] {
+  margin: 12px 0;
+}
+
+button {
+  background-color: var(--emerald-green);
+  color: var(--creased-khaki);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.25s ease, transform 0.15s ease;
+}
+
+button:hover {
+  background-color: #1f332c;
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.analysis-panel strong {
+  color: var(--noir-de-vigne);
+}
+
+.analysis-panel ul {
+  padding-left: 18px;
+}
+
+.analysis-panel li {
+  margin-bottom: 6px;
+}
+
+.file-input-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.file-input-wrapper input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-input-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  margin-right: 15px;
+  margin-bottom: 10px;
+  background-color: var(--noir-de-vigne);
+  color: var(--creased-khaki);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.file-input-button:hover {
+  background-color: #0c0f13;
+  transform: translateY(-1px);
+}
+
+.summary {
+  display: grid;
+  gap: 12px;
+}
+
+.summary-header {
+  display: grid;
+  gap: 6px;
+}
+
+.summary-players {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summary-players .vs {
+  opacity: 0.75;
+  font-weight: 700;
+}
+
+.summary-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  align-items: center;
+}
+
+.summary-left {
+  text-align: left;
+  font-weight: 800;
+}
+
+.summary-mid {
+  text-align: center;
+  font-weight: 800;
+  opacity: 0.95;
+}
+
+.summary-right {
+  text-align: right;
+  font-weight: 800;
+}

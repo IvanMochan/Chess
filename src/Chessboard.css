@@ -1,0 +1,192 @@
+:root {
+  --square-size: 64px;
+  --coord-size: 14px;
+  --coord-gap-right: 12px;
+  --coord-gap-bottom: 4px;
+}
+
+.board-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--coord-gap-right);
+}
+
+.chessboard {
+  display: inline-block;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+}
+
+.board-with-right-coords {
+  display: flex;
+  align-items: stretch;
+  gap: var(--coord-gap-right); 
+}
+
+.coords-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: calc(var(--square-size) * 8);
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+
+.coords-bottom {
+  display: flex;
+  justify-content: space-between;
+  width: calc(var(--square-size) * 8);
+  gap: 0;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.coord-cell {
+  font-size: var(--coord-size);
+  font-weight: 700;
+  color: var(--creased-khaki);
+  user-select: none;
+  opacity: 0.9;
+  line-height: 1;
+}
+
+.coords-right .coord-cell {
+  height: var(--square-size);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 2px;
+}
+
+.coords-bottom .coord-cell {
+  width: var(--square-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-area {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--coord-gap-bottom);
+}
+
+.row {
+  display: flex;
+}
+
+.square {
+  width: var(--square-size);
+  height: var(--square-size);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.white {
+  background-color: var(--creased-khaki);
+}
+
+.black {
+  background-color: var(--egyptian-earth);
+}
+
+.square:hover {
+  filter: brightness(1.07);
+}
+
+.square img {
+  width: 90%;
+  height: 90%;
+  pointer-events: none;
+}
+
+.move-dot {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  z-index: 5;
+  filter: brightness(1.2) saturate(1.25);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.45), 0 0 10px currentColor;
+}
+
+.move-dot.perfect {
+  background-color: #FFD24A;
+}
+
+.move-dot.best {
+  background-color: #2F5F52; 
+}
+
+.move-dot.good {
+  background-color: #8FD6A0;
+}
+
+.move-dot.okay {
+  background-color: #C8E1C0;
+}
+
+.move-dot.bad {
+  background-color: #D06247;
+}
+
+.move-dot.blunder {
+  background-color: #2A0E0E;
+}
+
+.evalbar {
+  width: 32px;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--egyptian-earth);
+  border: 1px solid rgba(248, 215, 148, 0.35);
+}
+
+.evalbar-black {
+  position: absolute;
+  inset: 0;
+  background-color: var(--egyptian-earth);
+}
+
+.evalbar-white {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--creased-khaki);
+  transition: height 450ms ease;
+}
+
+.evalbar-midline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(17, 20, 25, 0.4);
+}
+
+.evalbar-label {
+  position: absolute;
+  bottom: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--creased-khaki);
+  color: var(--noir-de-vigne);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
