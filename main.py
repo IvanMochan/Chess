@@ -105,7 +105,7 @@ def _resolve_stockfish_path():
         return os.environ["STOCKFISH_PATH"]
 
     here = os.path.dirname(os.path.abspath(__file__))
-    bundled = os.path.join(here, "engine", "chmod +x stockfish-ubuntu-x86-64-avx2")
+    bundled = os.path.join(here, "engine", "stockfish-ubuntu-x86-64-avx2")
     if os.path.exists(bundled):
         return bundled
 
