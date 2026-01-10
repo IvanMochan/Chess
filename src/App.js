@@ -22,7 +22,7 @@ function App() {
   const [isExplaining, setIsExplaining] = useState(false);
   const gameReady = Array.isArray(fenList) && fenList.length > 0;
 
-  const API = process.env.REACT_APP_API_URL || "http://localhost:8000";
+  const API = process.env.REACT_APP_API_URL || "https://chess-x7ns.onrender.com";
 
   const handleFileChange = (event) => {
     setSelectedFile(event.target.files[0]);
