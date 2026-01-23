@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import os
+import sys
 
 import chess
 import chess.pgn
@@ -275,6 +276,34 @@ def _engine_best_line(board: chess.Board, depth: int):
     best = pv[0] if pv else None
     return info, pv, best
 
+def _best_reply_and_pv_after(board_after: chess.Board, depth: int, max_len: int = 8):
+    info = ENGINE.analyse(board_after, chess.engine.Limit(depth=depth), multipv=1)
+    if isinstance(info, list):
+        info = info[0] if info else {}
+
+    pv = info.get("pv", [])
+    best_reply = pv[0] if pv else None
+
+    best_reply_uci = best_reply.uci() if best_reply else None
+    pv_after_uci = [m.uci() for m in pv[:max_len]]
+
+    pv_after_san = []
+    tmp = board_after.copy()
+    for mv in pv[:max_len]:
+        try:
+            pv_after_san.append(tmp.san(mv))
+            tmp.push(mv)
+        except Exception:
+            pv_after_san.append(mv.uci())
+            break
+
+    return {
+        "best_reply_uci": best_reply_uci,
+        "pv_after_uci": pv_after_uci,
+        "pv_after_san": pv_after_san,
+    }
+
+
 def _capture_explain(board: chess.Board, reply: chess.Move) -> Optional[str]:
     if not reply:
         return None
@@ -402,10 +431,15 @@ def _tactic_capture_phrase(board_after: chess.Board, pv_opp) -> str | None:
         return f"wins your {name}."
     return f"wins a {name}."
 
+def _log_reasons(game_id: int, ply: int, played: str, quality: str, reasons: list[str]):
+    print(f"[EXPLAIN][game={game_id} ply={ply}] played={played} quality={quality} reasons={reasons}")
+
 
 
 @app.post("/explain_move/")
 async def explain_move(req: ExplainMoveRequest):
+    print(f"[EXPLAIN] HIT game_id={req.game_id} ply={req.ply}", flush=True)
+    sys.stdout.flush()
     game = games_data.get(req.game_id)
     if not game:
         return JSONResponse(content={"message": "Unknown game_id"}, status_code=404)
@@ -424,6 +458,14 @@ async def explain_move(req: ExplainMoveRequest):
     board_before = chess.Board(fen_before)
     board_after = chess.Board(fen_after)
 
+    after_line = _best_reply_and_pv_after(board_after, depth=req.depth, max_len=10)
+    opp_best_reply_uci = after_line["best_reply_uci"]
+    pv_after_uci = after_line["pv_after_uci"]
+    pv_after_san = after_line["pv_after_san"]
+
+    played_san = _uci_to_san(board_before, played_move)
+    opp_reply_san = _uci_to_san(board_after, opp_best_reply_uci) if opp_best_reply_uci else None
+
     info_before = ENGINE.analyse(board_before, chess.engine.Limit(depth=req.depth), multipv=1)
     if isinstance(info_before, list):
         info_before = info_before[0]
@@ -441,8 +483,15 @@ async def explain_move(req: ExplainMoveRequest):
     is_white = fen_before.split(" ")[1] == "w"
     impact = (eval_after - eval_before) if is_white else (eval_before - eval_after)
     quality = classify_impact(impact)
+    debug_reasons = []
+    if quality in ("bad", "blunder"):
+        debug_reasons.append("EVAL_DROP")
     bullets = []
     bullets.append(f"Evaluation changed from {eval_before:+.2f} to {eval_after:+.2f}.")
+    if opp_best_reply_uci:
+        bullets.append(f"After {played_san}, opponent’s best reply is {opp_reply_san}.")
+        if pv_after_san:
+            bullets.append("Example continuation: " + " ".join(pv_after_san[:8]) + ".")
     played_san = _uci_to_san(board_before, played_move)
     best_san = _uci_to_san(board_before, best_move) if best_move else None
     opponent_pv_uci = []
@@ -509,6 +558,8 @@ async def explain_move(req: ExplainMoveRequest):
     to_row = 7 - to_rank
     to_col = to_file
 
+    _log_reasons(req.game_id, req.ply, played_move, quality, debug_reasons)
+
     return {
         "ply": req.ply,
         "played_move_uci": played_move,
@@ -523,4 +574,10 @@ async def explain_move(req: ExplainMoveRequest):
         "to_col": to_col,
         "opponent_pv_uci": opponent_pv_uci,
         "opponent_pv_san": opponent_pv_san,
+        "played_san": played_san,
+        "opp_best_reply_uci": opp_best_reply_uci,
+        "opp_best_reply_san": opp_reply_san,
+        "pv_after_uci": pv_after_uci[:10] if pv_after_uci else [],
+        "pv_after_san": pv_after_san[:10] if pv_after_san else [],
+        "debug_reasons": debug_reasons,
     }

@@ -136,6 +136,13 @@ const AnalysisPanel = ({
                 </div>
               )}
 
+              {explanation?.debug_reasons?.length > 0 && (
+                <div style={{ marginTop: 8, fontSize: 12, opacity: 0.85 }}>
+                  <div style={{ fontWeight: 700 }}>DEBUG reasons:</div>
+                  <div>{explanation.debug_reasons.join(", ")}</div>
+                </div>
+              )}
+
               {explanation?.opponent_pv_san?.length > 0 && (
                 <div style={{ marginTop: 10 }}>
                   <div style={{ fontWeight: 700 }}>Opponent best continuation:</div>

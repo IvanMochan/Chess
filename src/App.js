@@ -119,6 +119,7 @@ function App() {
       } finally {
         setIsExplaining(false);
       }
+      
     };
 
     run();
