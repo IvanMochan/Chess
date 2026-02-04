@@ -18,11 +18,37 @@ function App() {
     gameReady: false,
     currentFen: null,
   });
+
+  const [explanationCache, setExplanationCache] = useState({});
   const [explanation, setExplanation] = useState(null);
   const [isExplaining, setIsExplaining] = useState(false);
-  const gameReady = Array.isArray(fenList) && fenList.length > 0;
+  const [alternateExplanation, setAlternateExplanation] = useState(null);
 
+  const gameReady = Array.isArray(fenList) && fenList.length > 0;
   const API = process.env.REACT_APP_API_URL || "https://chess-x7ns.onrender.com";
+
+  const [viewMode, setViewMode] = useState("main");
+  const [anchorMoveIndex, setAnchorMoveIndex] = useState(null);
+  const [alternateLine, setAlternateLine] = useState({
+    fens: [],
+    movesSAN: [],
+    startPly: null,
+    index: 0,
+  });
+
+  const [mainMoveIndex, setMainMoveIndex] = useState(0);
+
+  const panelMoveIndex =
+  viewMode === "alternate"
+    ? (anchorMoveIndex ?? analysisState.currentMoveIndex)
+    : analysisState.currentMoveIndex;
+
+  useEffect(() => {
+    if (viewMode === "main") {
+      setMainMoveIndex(analysisState.currentMoveIndex);
+    }
+  }, [viewMode, analysisState.currentMoveIndex]);
+
 
   const handleFileChange = (event) => {
     setSelectedFile(event.target.files[0]);
@@ -62,16 +88,24 @@ function App() {
       });
 
       const result = await response.json();
-      console.log("Backend Response:", result);
 
       if (response.ok) {
-        alert("PGN uploaded successfully!");
+        setViewMode("main");
+        setAnchorMoveIndex(null);
+        setAlternateLine({
+          fens: [],
+          movesSAN: [],
+          startPly: null,
+          index: 0,
+        });
+
         setGameId(result.game_id);
         setFenList(result.moves);
 
         setAnalysisStarted(false);
-
         setGameSummary(null);
+
+        setExplanationCache({});
         setExplanation(null);
         setIsExplaining(false);
 
@@ -86,7 +120,65 @@ function App() {
 
   const onToggleView = () => setAnalysisStarted((v) => !v);
 
+  const showAlternateLine = async (moveIndexPressed) => {
+    if (!gameId) return;
+    if (typeof moveIndexPressed !== "number" || moveIndexPressed <= 0) return;
+
+    setAnchorMoveIndex(moveIndexPressed);
+
+    const ply = moveIndexPressed;
+
+    try {
+      const res = await fetch(`${API}/alternate_line/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          game_id: gameId,
+          ply,
+          depth: 14,
+          max_plies: 10,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) return;
+
+      setAlternateLine({
+        fens: data.fens,
+        movesSAN: data.moves_san,
+        startPly: data.start_ply,
+        index: 0,
+      });
+
+      setMainMoveIndex(analysisState.currentMoveIndex);
+      setViewMode("alternate");
+    } catch (e) {
+      console.error("alternate_line error:", e);
+    }
+
+    try {
+      const res2 = await fetch(`${API}/explain_alternate/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          game_id: gameId,
+          ply: moveIndexPressed,
+          depth: 14,
+        }),
+      });
+
+      const data2 = await res2.json();
+      if (res2.ok) setAlternateExplanation(data2);
+      else setAlternateExplanation(null);
+    } catch {
+      setAlternateExplanation(null);
+    }
+  };
+
+  
+
   useEffect(() => {
+    if (viewMode !== "main") return;
     if (!analysisStarted) {
       setExplanation(null);
       setIsExplaining(false);
@@ -101,6 +193,13 @@ function App() {
       return;
     }
 
+    const cached = explanationCache[ply];
+    if (cached) {
+      setExplanation(cached);
+      setIsExplaining(false);
+      return;
+    }
+
     const run = async () => {
       setIsExplaining(true);
       try {
@@ -111,25 +210,35 @@ function App() {
         });
 
         const data = await res.json();
-        if (res.ok) setExplanation(data);
-        else setExplanation(null);
+        if (res.ok) {
+          setExplanationCache((prev) => ({ ...prev, [ply]: data }));
+          setExplanation(data);
+        } else {
+          setExplanation(null);
+        }
       } catch (e) {
         console.error("Explain move error:", e);
         setExplanation(null);
       } finally {
         setIsExplaining(false);
       }
-      
     };
 
     run();
-  }, [analysisStarted, analysisState.currentMoveIndex, gameId, gameReady]);
+  }, [analysisStarted, analysisState.currentMoveIndex, gameId, gameReady, explanationCache, viewMode]);
+
+  const activeFenList =
+  viewMode === "alternate"
+    ? alternateLine.fens
+    : fenList;
 
   return (
     <div className="container">
       <div className="chessboard-container">
         <Chessboard
-          fenList={fenList}
+          fenList={activeFenList}
+          restoreMoveIndex={viewMode === "main" ? anchorMoveIndex : undefined}
+          showMoveDots={viewMode === "main"}
           onAnalysisChange={setAnalysisState}
           externalEval={analysisState.analysisEval}
           explanation={explanation}
@@ -158,9 +267,14 @@ function App() {
           gameReady={gameReady}
           analysisStarted={analysisStarted}
           onToggleView={onToggleView}
-          currentMoveIndex={analysisState.currentMoveIndex}
+          currentMoveIndex={panelMoveIndex}
           explanation={explanation}
+          alternateExplanation={alternateExplanation}
           isExplaining={isExplaining}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          setAlternateLine={setAlternateLine}
+          showAlternateLine={showAlternateLine}
         />
       </div>
     </div>

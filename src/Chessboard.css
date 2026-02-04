@@ -1,6 +1,6 @@
 :root {
-  --square-size: 64px;
-  --coord-size: 14px;
+  --square-size: 80px;
+  --coord-size: 16px;
   --coord-gap-right: 12px;
   --coord-gap-bottom: 4px;
 }

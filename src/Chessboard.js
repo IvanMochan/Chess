@@ -44,7 +44,7 @@ const EvalBar = ({ analysis, currentMoveIndex }) => {
   );
 };
 
-const Chessboard = ({ fenList, onAnalysisChange, externalEval, explanation }) => {
+const Chessboard = ({ fenList, restoreMoveIndex, showMoveDots = true, onAnalysisChange, externalEval, explanation}) => {
   const [board, setBoard] = useState(initialBoard);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
 
@@ -87,9 +87,6 @@ const Chessboard = ({ fenList, onAnalysisChange, externalEval, explanation }) =>
   const panelEval = gameReady ? (analysisCache[currentMoveIndex] || null) : null;
   const panelBest = (prevIndex !== null) ? (analysisCache[prevIndex] || null) : null;
 
- // const currentPosAnalysis = gameReady ? (analysisCache[currentMoveIndex] || null) : null; 
- // const prevPosAnalysis = prevIndex !== null ? (analysisCache[prevIndex] || null) : null;  
-
   useEffect(() => {
     if (!gameReady) {
       setBoard(initialBoard);
@@ -108,6 +105,16 @@ const Chessboard = ({ fenList, onAnalysisChange, externalEval, explanation }) =>
   }, [gameReady, currentFen, createBoardFromFEN]);
 
   useEffect(() => {
+    if (!gameReady) return;
+
+    setCurrentMoveIndex(0);
+    setAnalysis(null);
+    setAnalysisError(null);
+    setIsAnalyzing(false);
+    setAnalysisCache({});
+  }, [gameReady, fenList]);
+
+  useEffect(() => {
     if (gameReady) {
       setCurrentMoveIndex(0);
       setAnalysis(null);
@@ -116,15 +123,6 @@ const Chessboard = ({ fenList, onAnalysisChange, externalEval, explanation }) =>
       setAnalysisCache({});
     }
   }, [gameReady]);
-
-  useEffect(() => {
-    if (!Array.isArray(fenList) || fenList.length === 0) {
-      setCurrentMoveIndex(0);
-      setBoard(initialBoard);
-      return;
-    }
-    setCurrentMoveIndex(0);
-  }, [fenList]);
 
   const handleNextMove = () => {
     if (!gameReady) return;
@@ -226,12 +224,20 @@ const Chessboard = ({ fenList, onAnalysisChange, externalEval, explanation }) =>
     });
   }, [panelEval, panelBest, isAnalyzing, analysisError, currentMoveIndex, gameReady, currentFen, onAnalysisChange]);
 
+  useEffect(() => {
+    if (!gameReady) return;
+    if (typeof restoreMoveIndex !== "number") return;
+
+    setCurrentMoveIndex(Math.max(0, Math.min(restoreMoveIndex, fenList.length - 1)));
+  }, [restoreMoveIndex, gameReady, fenList.length]);
+
   const renderSquare = (row, col) => {
     const piece = board[row][col];
     const isWhiteSquare = (row + col) % 2 === 0;
     const pieceImage = piece ? `${process.env.PUBLIC_URL}/images/${piece}.png` : null;
 
     const dot =
+      showMoveDots &&
       explanation &&
       typeof explanation.to_row === "number" &&
       typeof explanation.to_col === "number" &&
@@ -266,11 +272,8 @@ const Chessboard = ({ fenList, onAnalysisChange, externalEval, explanation }) =>
     const impact = isWhiteMove ? (after - before) : (before - after);
 
     if (impact <= -2.0) return "blunder"; 
-    if (impact <= -0.75) return "bad";    
-    if (impact >= 3.0) return "perfect";  
-    if (impact >= 1.0) return "best";     
-    if (impact >= 0.1) return "good";     
-    return "okay";                        
+    if (impact <= -0.75) return "bad";        
+    return "good";                        
   };
 
   const getMoveToSquare = (fenBefore, fenAfter) => {
@@ -315,7 +318,7 @@ const Chessboard = ({ fenList, onAnalysisChange, externalEval, explanation }) =>
     );
 
     return {
-      ...toSquare,
+      toSquare,
       classification,
     };
   })();
