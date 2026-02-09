@@ -6,22 +6,33 @@
   --noir-de-vigne: #111419;
 }
 
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: Arial, sans-serif;
   background-color: var(--noir-de-vigne);
-  color: var(--creased-khaki); 
+  color: var(--creased-khaki);
   margin: 0;
   padding: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
+}
+
+.app-scale {
+  transform: scale(0.80);
+  transform-origin: top center;
 }
 
 .container {
   display: flex;
   gap: 32px;
   padding: 24px;
+  padding-top: 260px;
   align-items: flex-start;
 }
 
@@ -175,12 +186,14 @@ button:disabled {
 
 .app-logo {
   position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 1000;
+  top: 12px;
+  left: 12px;
+  z-index: 9999;
+  pointer-events: auto;
 }
 
 .app-logo img {
-  height: 54px;
+  display: block;
+  height: 48px; 
   width: auto;
 }

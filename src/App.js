@@ -262,87 +262,89 @@ function App() {
         alt="App logo"
       />
     </div>
-    <div className="container">
-      <div className="chessboard-container">
-        <Chessboard
-          fenList={activeFenList}
-          movesSan={viewMode === "main" ? movesSan : alternateLine.movesSAN}
-          currentMoveIndex={
-            viewMode === "main" ? analysisState.currentMoveIndex : alternateLine.index
-          }
-          onSelectMoveIndex={
-            viewMode === "main"
-              ? (idx) => setAnalysisState((prev) => ({ ...prev, currentMoveIndex: idx }))
-              : (idx) => setAlternateLine((prev) => ({ ...prev, index: idx }))
-          }
-          showMoveDots={viewMode === "main"}
-          onAnalysisChange={viewMode === "main" ? updateAnalysisState : undefined}
-          externalEval={analysisState.analysisEval}
-          explanation={explanation}
-        />
-      </div>
-
-      <div className="movelist-container">
-        <div className="movelist-title">Moves</div>
-
-        {viewMode === "main" ? (
-          gameReady && (
-            <MoveList
-              movesSan={movesSan}
-              activePly={analysisState.currentMoveIndex}
-              maxPly={fenList.length - 1}
-              onSelectPly={(ply) =>
-                setAnalysisState((prev) => ({ ...prev, currentMoveIndex: ply }))
-              }
-            />
-          )
-        ) : (
-          alternateLine.fens.length > 0 && (
-            <MoveList
-              movesSan={alternateLine.movesSAN}
-              activePly={alternateLine.index}
-              maxPly={alternateLine.fens.length - 1}
-              onSelectPly={(idx) =>
-                setAlternateLine((prev) => ({ ...prev, index: idx }))
-              }
-            />
-          )
-        )}
-      </div>
-      <div className="file-upload-container">
-        <h2>Upload PGN File</h2>
-        <label className="file-input-wrapper">
-          <span className="file-input-button">Select a File</span>
-          <input
-            type="file"
-            accept=".pgn"
-            onChange={handleFileChange}
-          />
-        </label>
-        {gameReady && (
-          <button onClick={onToggleView} style={{ width: "100%", marginTop: 12 }}>
-            {analysisStarted ? "Game summary" : "Step-by-step analysis"}
-          </button>
-        )}
-        <div className="analysis-panel-wrapper">
-          <AnalysisPanel
-            gameSummary={gameSummary}
-            analysisEval={analysisState.analysisEval}
-            analysisBest={analysisState.analysisBest}
-            isAnalyzing={analysisState.isAnalyzing}
-            error={analysisState.analysisError}
-            gameReady={gameReady}
-            analysisStarted={analysisStarted}
-            onToggleView={onToggleView}
-            currentMoveIndex={panelMoveIndex}
+    <div className="app-scale">
+      <div className="container">
+        <div className="chessboard-container">
+          <Chessboard
+            fenList={activeFenList}
+            movesSan={viewMode === "main" ? movesSan : alternateLine.movesSAN}
+            currentMoveIndex={
+              viewMode === "main" ? analysisState.currentMoveIndex : alternateLine.index
+            }
+            onSelectMoveIndex={
+              viewMode === "main"
+                ? (idx) => setAnalysisState((prev) => ({ ...prev, currentMoveIndex: idx }))
+                : (idx) => setAlternateLine((prev) => ({ ...prev, index: idx }))
+            }
+            showMoveDots={viewMode === "main"}
+            onAnalysisChange={viewMode === "main" ? updateAnalysisState : undefined}
+            externalEval={analysisState.analysisEval}
             explanation={explanation}
-            alternateExplanation={alternateExplanation}
-            isExplaining={isExplaining}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            setAlternateLine={setAlternateLine}
-            showAlternateLine={showAlternateLine}
           />
+        </div>
+
+        <div className="movelist-container">
+          <div className="movelist-title">Moves</div>
+
+          {viewMode === "main" ? (
+            gameReady && (
+              <MoveList
+                movesSan={movesSan}
+                activePly={analysisState.currentMoveIndex}
+                maxPly={fenList.length - 1}
+                onSelectPly={(ply) =>
+                  setAnalysisState((prev) => ({ ...prev, currentMoveIndex: ply }))
+                }
+              />
+            )
+          ) : (
+            alternateLine.fens.length > 0 && (
+              <MoveList
+                movesSan={alternateLine.movesSAN}
+                activePly={alternateLine.index}
+                maxPly={alternateLine.fens.length - 1}
+                onSelectPly={(idx) =>
+                  setAlternateLine((prev) => ({ ...prev, index: idx }))
+                }
+              />
+            )
+          )}
+        </div>
+        <div className="file-upload-container">
+          <h2>Upload PGN File</h2>
+          <label className="file-input-wrapper">
+            <span className="file-input-button">Select a File</span>
+            <input
+              type="file"
+              accept=".pgn"
+              onChange={handleFileChange}
+            />
+          </label>
+          {gameReady && (
+            <button onClick={onToggleView} style={{ width: "100%", marginTop: 12 }}>
+              {analysisStarted ? "Game summary" : "Step-by-step analysis"}
+            </button>
+          )}
+          <div className="analysis-panel-wrapper">
+            <AnalysisPanel
+              gameSummary={gameSummary}
+              analysisEval={analysisState.analysisEval}
+              analysisBest={analysisState.analysisBest}
+              isAnalyzing={analysisState.isAnalyzing}
+              error={analysisState.analysisError}
+              gameReady={gameReady}
+              analysisStarted={analysisStarted}
+              onToggleView={onToggleView}
+              currentMoveIndex={panelMoveIndex}
+              explanation={explanation}
+              alternateExplanation={alternateExplanation}
+              isExplaining={isExplaining}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              setAlternateLine={setAlternateLine}
+              showAlternateLine={showAlternateLine}
+            />
+          </div>
         </div>
       </div>
     </div>
