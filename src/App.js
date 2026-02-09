@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef  } from 'react';
 import Chessboard from './Chessboard';
 import AnalysisPanel from './AnalysisPanel';
+import MoveList from './MoveList';
 import './App.css';
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [gameId, setGameId] = useState(null);
   const [fenList, setFenList] = useState([]);
+  const [movesSan, setMovesSan] = useState([])
   const [analysisStarted, setAnalysisStarted] = useState(false);
   const [gameSummary, setGameSummary] = useState(null);
   const [analysisState, setAnalysisState] = useState({
@@ -18,6 +20,25 @@ function App() {
     gameReady: false,
     currentFen: null,
   });
+  const updateAnalysisState = useCallback((next) => {
+    if (!next || typeof next !== "object") return;
+
+    setAnalysisState((prev) => {
+      const merged = { ...prev, ...next };
+
+      const same =
+        prev.analysisEval === merged.analysisEval &&
+        prev.analysisBest === merged.analysisBest &&
+        prev.isAnalyzing === merged.isAnalyzing &&
+        prev.analysisError === merged.analysisError &&
+        prev.currentMoveIndex === merged.currentMoveIndex &&
+        prev.gameReady === merged.gameReady &&
+        prev.currentFen === merged.currentFen;
+
+      return same ? prev : merged;
+    });
+  }, []);
+
 
   const [explanationCache, setExplanationCache] = useState({});
   const [explanation, setExplanation] = useState(null);
@@ -50,8 +71,49 @@ function App() {
   }, [viewMode, analysisState.currentMoveIndex]);
 
 
-  const handleFileChange = (event) => {
-    setSelectedFile(event.target.files[0]);
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch(`${API}/upload_pgn/`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setViewMode("main");
+        setAnchorMoveIndex(null);
+        setAlternateLine({ fens: [], movesSAN: [], startPly: null, index: 0 });
+
+        setGameId(result.game_id);
+        setFenList(result.moves);
+        setMovesSan(result.moves_san || []);
+
+        setAnalysisStarted(false);
+        setGameSummary(null);
+
+        setExplanationCache({});
+        setExplanation(null);
+        setIsExplaining(false);
+        setAlternateExplanation(null);
+
+        fetchGameSummary(result.game_id);
+      } else {
+        alert(result.message || "Upload failed");
+      }
+    } catch (error) {
+      alert("Error uploading file");
+    } finally {
+      event.target.value = "";
+    }
   };
 
   const fetchGameSummary = async (newGameId) => {
@@ -69,52 +131,6 @@ function App() {
     } catch (e) {
       console.error("analyze_game error:", e);
       setGameSummary(null);
-    }
-  };
-
-  const handleFileUpload = async () => {
-    if (!selectedFile) {
-      alert("Please select a PGN file.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
-    try {
-      const response = await fetch(`${API}/upload_pgn/`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setViewMode("main");
-        setAnchorMoveIndex(null);
-        setAlternateLine({
-          fens: [],
-          movesSAN: [],
-          startPly: null,
-          index: 0,
-        });
-
-        setGameId(result.game_id);
-        setFenList(result.moves);
-
-        setAnalysisStarted(false);
-        setGameSummary(null);
-
-        setExplanationCache({});
-        setExplanation(null);
-        setIsExplaining(false);
-
-        fetchGameSummary(result.game_id);
-      } else {
-        alert(result.message);
-      }
-    } catch (error) {
-      alert("Error uploading file");
     }
   };
 
@@ -175,7 +191,13 @@ function App() {
     }
   };
 
-  
+  useEffect(() => {
+    if (viewMode !== "main") return;
+    if (typeof anchorMoveIndex !== "number") return;
+
+    setAnalysisState((prev) => ({ ...prev, currentMoveIndex: anchorMoveIndex }));
+    setAnchorMoveIndex(null);
+  }, [viewMode, anchorMoveIndex]);
 
   useEffect(() => {
     if (viewMode !== "main") return;
@@ -233,18 +255,60 @@ function App() {
     : fenList;
 
   return (
+    <>
+    <div className="app-logo">
+      <img
+        src={`${process.env.PUBLIC_URL}/images/logo.png`}
+        alt="App logo"
+      />
+    </div>
     <div className="container">
       <div className="chessboard-container">
         <Chessboard
           fenList={activeFenList}
-          restoreMoveIndex={viewMode === "main" ? anchorMoveIndex : undefined}
+          movesSan={viewMode === "main" ? movesSan : alternateLine.movesSAN}
+          currentMoveIndex={
+            viewMode === "main" ? analysisState.currentMoveIndex : alternateLine.index
+          }
+          onSelectMoveIndex={
+            viewMode === "main"
+              ? (idx) => setAnalysisState((prev) => ({ ...prev, currentMoveIndex: idx }))
+              : (idx) => setAlternateLine((prev) => ({ ...prev, index: idx }))
+          }
           showMoveDots={viewMode === "main"}
-          onAnalysisChange={setAnalysisState}
+          onAnalysisChange={viewMode === "main" ? updateAnalysisState : undefined}
           externalEval={analysisState.analysisEval}
           explanation={explanation}
         />
       </div>
 
+      <div className="movelist-container">
+        <div className="movelist-title">Moves</div>
+
+        {viewMode === "main" ? (
+          gameReady && (
+            <MoveList
+              movesSan={movesSan}
+              activePly={analysisState.currentMoveIndex}
+              maxPly={fenList.length - 1}
+              onSelectPly={(ply) =>
+                setAnalysisState((prev) => ({ ...prev, currentMoveIndex: ply }))
+              }
+            />
+          )
+        ) : (
+          alternateLine.fens.length > 0 && (
+            <MoveList
+              movesSan={alternateLine.movesSAN}
+              activePly={alternateLine.index}
+              maxPly={alternateLine.fens.length - 1}
+              onSelectPly={(idx) =>
+                setAlternateLine((prev) => ({ ...prev, index: idx }))
+              }
+            />
+          )
+        )}
+      </div>
       <div className="file-upload-container">
         <h2>Upload PGN File</h2>
         <label className="file-input-wrapper">
@@ -255,29 +319,34 @@ function App() {
             onChange={handleFileChange}
           />
         </label>
-        <button onClick={handleFileUpload}>Upload</button>
-        {gameId && <p>Game ID: {gameId}</p>}
-
-        <AnalysisPanel
-          gameSummary={gameSummary}
-          analysisEval={analysisState.analysisEval}
-          analysisBest={analysisState.analysisBest}
-          isAnalyzing={analysisState.isAnalyzing}
-          error={analysisState.analysisError}
-          gameReady={gameReady}
-          analysisStarted={analysisStarted}
-          onToggleView={onToggleView}
-          currentMoveIndex={panelMoveIndex}
-          explanation={explanation}
-          alternateExplanation={alternateExplanation}
-          isExplaining={isExplaining}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          setAlternateLine={setAlternateLine}
-          showAlternateLine={showAlternateLine}
-        />
+        {gameReady && (
+          <button onClick={onToggleView} style={{ width: "100%", marginTop: 12 }}>
+            {analysisStarted ? "Game summary" : "Step-by-step analysis"}
+          </button>
+        )}
+        <div className="analysis-panel-wrapper">
+          <AnalysisPanel
+            gameSummary={gameSummary}
+            analysisEval={analysisState.analysisEval}
+            analysisBest={analysisState.analysisBest}
+            isAnalyzing={analysisState.isAnalyzing}
+            error={analysisState.analysisError}
+            gameReady={gameReady}
+            analysisStarted={analysisStarted}
+            onToggleView={onToggleView}
+            currentMoveIndex={panelMoveIndex}
+            explanation={explanation}
+            alternateExplanation={alternateExplanation}
+            isExplaining={isExplaining}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            setAlternateLine={setAlternateLine}
+            showAlternateLine={showAlternateLine}
+          />
+        </div>
       </div>
     </div>
+    </>
   );
 }
 

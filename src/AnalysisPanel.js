@@ -94,7 +94,7 @@ const AnalysisPanel = ({
                 ))}
               </div>
             </div>
-)}
+        )}
         </div>
       )}
 
@@ -153,9 +153,9 @@ const AnalysisPanel = ({
                 </button>
               )}
 
-              <div><strong>Move played:</strong> {explanation.played_move_uci || "—"}</div>
+              <div><strong>Move played:</strong> {explanation.played_move_san || "—"}</div>
               <div><strong>Quality:</strong> {explanation.quality || "—"}</div>
-              <div><strong>Engine best:</strong> {explanation.best_move_uci || "—"}</div>
+              <div><strong>Engine best:</strong> {explanation.best_move_san || "—"}</div>
 
               <div>
                 <strong>Eval:</strong>{" "}
@@ -194,11 +194,7 @@ const AnalysisPanel = ({
       )}
 
 
-      {gameReady && (
-        <button onClick={onToggleView} style={{ width: "100%", marginTop: 12 }}>
-          {analysisStarted ? "Game summary" : "Step-by-step analysis"}
-        </button>
-      )}
+
     </div>
   );
 };

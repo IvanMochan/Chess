@@ -44,7 +44,17 @@ const EvalBar = ({ analysis, currentMoveIndex }) => {
   );
 };
 
-const Chessboard = ({ fenList, restoreMoveIndex, showMoveDots = true, onAnalysisChange, externalEval, explanation}) => {
+const Chessboard = ({ 
+  fenList, 
+  restoreMoveIndex, 
+  showMoveDots = true, 
+  onAnalysisChange, 
+  externalEval, 
+  explanation, 
+  movesSan = [], 
+  onSelectMoveIndex,
+  currentMoveIndex: controlledMoveIndex
+}) => {
   const [board, setBoard] = useState(initialBoard);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
 
@@ -53,6 +63,7 @@ const Chessboard = ({ fenList, restoreMoveIndex, showMoveDots = true, onAnalysis
   const [analysisError, setAnalysisError] = useState(null);
   const [analysisCache, setAnalysisCache] = useState({});
   const abortRef = useRef(null);
+  const lastRestoreAppliedRef = useRef(null);
 
   const createBoardFromFEN = useCallback((fen) => {
     const b = Array(8).fill(null).map(() => Array(8).fill(null));
@@ -75,17 +86,22 @@ const Chessboard = ({ fenList, restoreMoveIndex, showMoveDots = true, onAnalysis
   }, []);
 
   const gameReady = Array.isArray(fenList) && fenList.length > 0;
-  const currentFen = gameReady ? fenList[currentMoveIndex] : null;
+  const displayedMoveIndex =
+  typeof controlledMoveIndex === "number"
+    ? controlledMoveIndex
+    : currentMoveIndex;
+  const currentFen = gameReady ? fenList[displayedMoveIndex] : null;
   const evalFromExplanation =
   explanation && typeof explanation.eval_after === "number"
     ? { score_cp: explanation.eval_after * 100, score_mate: null }
     : null;
 
-  const prevIndex = (gameReady && currentMoveIndex > 0) ? currentMoveIndex - 1 : null;
+  const prevIndex = gameReady && displayedMoveIndex > 0 ? displayedMoveIndex - 1 : null;
   const prevFen = (prevIndex !== null) ? fenList[prevIndex] : null;
 
-  const panelEval = gameReady ? (analysisCache[currentMoveIndex] || null) : null;
-  const panelBest = (prevIndex !== null) ? (analysisCache[prevIndex] || null) : null;
+  const panelEval = gameReady ? analysisCache[displayedMoveIndex] || null : null;
+
+  const panelBest = prevIndex !== null ? analysisCache[prevIndex] || null : null;
 
   useEffect(() => {
     if (!gameReady) {
@@ -113,26 +129,6 @@ const Chessboard = ({ fenList, restoreMoveIndex, showMoveDots = true, onAnalysis
     setIsAnalyzing(false);
     setAnalysisCache({});
   }, [gameReady, fenList]);
-
-  useEffect(() => {
-    if (gameReady) {
-      setCurrentMoveIndex(0);
-      setAnalysis(null);
-      setAnalysisError(null);
-      setIsAnalyzing(false);
-      setAnalysisCache({});
-    }
-  }, [gameReady]);
-
-  const handleNextMove = () => {
-    if (!gameReady) return;
-    setCurrentMoveIndex((idx) => Math.min(idx + 1, fenList.length - 1));
-  };
-
-  const handlePreviousMove = () => {
-    if (!gameReady) return;
-    setCurrentMoveIndex((idx) => Math.max(idx - 1, 0));
-  };
 
   useEffect(() => {
     if (!gameReady || !currentFen) {
@@ -208,7 +204,7 @@ const Chessboard = ({ fenList, restoreMoveIndex, showMoveDots = true, onAnalysis
     return () => {
       if (!didFinish) controller.abort();
     };
-  }, [gameReady, currentFen, currentMoveIndex, prevIndex, prevFen, analysisCache, panelEval, panelBest]);
+  }, [gameReady, currentFen, currentMoveIndex, prevIndex, prevFen, panelEval, panelBest]);
 
   useEffect(() => {
     if (typeof onAnalysisChange !== "function") return;
@@ -218,18 +214,28 @@ const Chessboard = ({ fenList, restoreMoveIndex, showMoveDots = true, onAnalysis
       analysisBest: panelBest,     
       isAnalyzing,
       analysisError,
-      currentMoveIndex,
+      currentMoveIndex: displayedMoveIndex,
       gameReady,
       currentFen,
     });
-  }, [panelEval, panelBest, isAnalyzing, analysisError, currentMoveIndex, gameReady, currentFen, onAnalysisChange]);
+  }, [panelEval, panelBest, isAnalyzing, analysisError, displayedMoveIndex, gameReady, currentFen, onAnalysisChange]);
 
   useEffect(() => {
     if (!gameReady) return;
+    if (typeof controlledMoveIndex === "number") return;
     if (typeof restoreMoveIndex !== "number") return;
 
     setCurrentMoveIndex(Math.max(0, Math.min(restoreMoveIndex, fenList.length - 1)));
-  }, [restoreMoveIndex, gameReady, fenList.length]);
+  }, [restoreMoveIndex, controlledMoveIndex, gameReady, fenList.length]);
+
+  useEffect(() => {
+    if (!gameReady) return;
+    if (typeof controlledMoveIndex !== "number") return;
+
+    const clamped = Math.max(0, Math.min(controlledMoveIndex, fenList.length - 1));
+    if (clamped !== currentMoveIndex) setCurrentMoveIndex(clamped);
+  }, [controlledMoveIndex, gameReady, fenList.length, currentMoveIndex]);
+
 
   const renderSquare = (row, col) => {
     const piece = board[row][col];
@@ -293,10 +299,10 @@ const Chessboard = ({ fenList, restoreMoveIndex, showMoveDots = true, onAnalysis
   };
 
   const lastMoveInfo = (() => {
-    if (currentMoveIndex < 1) return null;
+    if (displayedMoveIndex < 1) return null;
 
-    const beforeIdx = currentMoveIndex - 1;
-    const afterIdx = currentMoveIndex;
+    const beforeIdx = displayedMoveIndex - 1;
+    const afterIdx = displayedMoveIndex;
 
     const evalBefore = analysisCache[beforeIdx];
     const evalAfter = analysisCache[afterIdx];
@@ -327,7 +333,8 @@ const Chessboard = ({ fenList, restoreMoveIndex, showMoveDots = true, onAnalysis
     <div>
       <div className="board-row">
         <EvalBar
-          analysis={evalFromExplanation ?? externalEval ?? panelEval} currentMoveIndex={currentMoveIndex}
+          analysis={evalFromExplanation ?? externalEval ?? panelEval} 
+          currentMoveIndex={displayedMoveIndex}
         />
 
         <div className="board-area">
@@ -354,18 +361,8 @@ const Chessboard = ({ fenList, restoreMoveIndex, showMoveDots = true, onAnalysis
           </div>
         </div>
       </div>
-
-      <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-        <button onClick={handlePreviousMove} disabled={!gameReady || currentMoveIndex === 0}>
-          Previous Move
-        </button>
-        <button onClick={handleNextMove} disabled={!gameReady || currentMoveIndex >= (fenList?.length ?? 1) - 1}>
-          Next Move
-        </button>
-      </div>
-
       <div style={{ marginTop: 8 }}>
-        Move index: {gameReady ? currentMoveIndex : "-"}
+        Move index: {gameReady ? displayedMoveIndex : "-"}
       </div>
     </div>
   );

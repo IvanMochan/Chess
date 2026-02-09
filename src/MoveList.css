@@ -1,0 +1,98 @@
+.movelist-container {
+  width: 240px;
+  background-color: var(--emerald-green);
+  color: var(--creased-khaki);
+  border-radius: 14px;
+  padding: 14px 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  height: fit-content;
+  max-height: 680px;
+  display: flex;
+  flex-direction: column;
+}
+
+.movelist-title {
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.movelist-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 8px 0 10px 0;
+}
+
+.movelist-nav button {
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.movelist-nav button:first-child,
+.movelist-nav button:last-child {
+  padding: 6px 8px;
+}
+
+.movelist-scroll {
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--egyptian-earth) var(--emerald-green);
+}
+
+.movelist-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.movelist-scroll::-webkit-scrollbar-track {
+  background: var(--emerald-green);
+  border-radius: 8px;
+}
+
+.movelist-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--egyptian-earth);
+  border-radius: 8px;
+  border: 2px solid var(--emerald-green);
+}
+
+.movelist-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #c97a3a;
+}
+
+.movelist-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1.7;
+}
+
+.movelist-num {
+  width: 28px;
+  opacity: 0.7;
+  flex: 0 0 auto;
+}
+
+.movelist-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 600;
+  opacity: 0.9;
+  color: inherit;
+}
+
+.movelist-link:hover {
+  opacity: 1;
+}
+
+.movelist-link.active {
+  font-weight: 900;
+  opacity: 1;
+}
+
+.movelist-empty {
+  opacity: 0.8;
+}

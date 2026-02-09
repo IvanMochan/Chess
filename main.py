@@ -43,6 +43,13 @@ async def upload_pgn(file: UploadFile = File(...)):
 
         fens = get_fen_positions(pgn)
         moves_uci = [m.uci() for m in pgn.mainline_moves()]
+
+        board_tmp = pgn.board()
+        moves_san = []
+        for mv in pgn.mainline_moves():
+            moves_san.append(board_tmp.san(mv))
+            board_tmp.push(mv)
+
         white_name, black_name, result, winner = pgn_winner_info(pgn)
 
         game_id = len(games_data) + 1
@@ -51,6 +58,7 @@ async def upload_pgn(file: UploadFile = File(...)):
             "game": pgn,
             "moves": fens,
             "moves_uci": moves_uci,
+            "moves_san": moves_san,
             "white_name": white_name,
             "black_name": black_name,
             "result": result,
@@ -67,6 +75,7 @@ async def upload_pgn(file: UploadFile = File(...)):
                 "game_id": game_id,
                 "moves": fens,
                 "moves_uci": moves_uci,
+                "moves_san": moves_san,
                 "white_name": white_name,
                 "black_name": black_name,
                 "result": result,
@@ -196,7 +205,7 @@ async def analyze_fen(req: AnalyzeRequest):
 
 class AnalyzeGameRequest(BaseModel):
     game_id: int
-    depth: int = 12
+    depth: int = 14
 
 @app.post("/analyze_game/")
 async def analyze_game(req: AnalyzeGameRequest):
@@ -457,6 +466,85 @@ def _top_hanging_piece_details(board_after: chess.Board, mover_color: bool):
         "attacker_piece_name": PIECE_NAME.get(attacker_piece.piece_type, "piece") if attacker_piece else "piece",
         "attacker_square": chess.square_name(attacker_sq),
     }
+
+def _overworked_defender_details(board_after: chess.Board, mover_color: bool):
+    """
+    Detects an overworked defender:
+    - Find a mover piece D (defender) that defends >=2 valuable mover pieces (val>=3)
+    - Those defended targets are also attacked by the opponent (i.e. actually under pressure)
+    Returns structured info to form an explanation.
+    """
+    opp = not mover_color
+
+    # Build list of "valuable targets under pressure"
+    targets = []  # (value, target_sq, target_piece, attackers, defenders)
+    for t_sq, t_piece in board_after.piece_map().items():
+        if t_piece.color != mover_color:
+            continue
+        t_val = PIECE_VALUE.get(t_piece.piece_type, 0)
+        if t_val < 3:
+            continue
+        a = len(board_after.attackers(opp, t_sq))
+        if a == 0:
+            continue
+        d = len(board_after.attackers(mover_color, t_sq))
+        targets.append((t_val, t_sq, t_piece, a, d))
+
+    if len(targets) < 2:
+        return None
+
+    best = None
+    # For each potential defender square, count how many pressured targets it defends
+    for d_sq, d_piece in board_after.piece_map().items():
+        if d_piece.color != mover_color:
+            continue
+        d_val = PIECE_VALUE.get(d_piece.piece_type, 0)
+        if d_val < 3:
+            continue  # keep it simple: real pieces, not pawns/king
+
+        defended = []
+        for t_val, t_sq, t_piece, a, dd in targets:
+            if board_after.is_attacked_by(mover_color, t_sq) and board_after.is_attacked_by(mover_color, t_sq):
+                # check this defender specifically attacks the target square
+                if d_sq in board_after.attackers(mover_color, t_sq):
+                    defended.append((t_val, t_sq, t_piece, a, dd))
+
+        if len(defended) < 2:
+            continue
+
+        # Prefer cases where at least one target is "unstable" (attackers >= defenders)
+        unstable = any(a >= dd for _, _, _, a, dd in defended)
+
+        # Score: total value defended + bonus for instability (so it triggers when it matters)
+        score = sum(t_val for t_val, *_ in defended) + (5 if unstable else 0)
+
+        cand = (score, d_sq, d_piece, defended)
+        if best is None or cand[0] > best[0]:
+            best = cand
+
+    if not best:
+        return None
+
+    _, d_sq, d_piece, defended = best
+
+    # Pick top 2 targets for readable explanation
+    defended.sort(reverse=True, key=lambda x: x[0])
+    defended = defended[:2]
+
+    return {
+        "defender_piece_name": PIECE_NAME.get(d_piece.piece_type, "piece"),
+        "defender_square": chess.square_name(d_sq),
+        "targets": [
+            {
+                "piece_name": PIECE_NAME.get(t_piece.piece_type, "piece"),
+                "square": chess.square_name(t_sq),
+                "attackers": a,
+                "defenders": dd,
+            }
+            for (t_val, t_sq, t_piece, a, dd) in defended
+        ],
+    }
+
 
 def _trade_likely_within(board_after: chess.Board, sq: chess.Square, depth: int, max_plies: int = 3) -> bool:
     """
@@ -1086,7 +1174,7 @@ async def explain_alternate(req: ExplainAlternateRequest):
         board_after=board_after_played,
         played_move_uci=played_uci,
         mover_is_white=mover_is_white,
-        impact_mover=0.0,
+        impact_mover=-0.3,
         opponent_pv_uci=played_pv_uci,
     )
 
@@ -1103,15 +1191,10 @@ async def explain_alternate(req: ExplainAlternateRequest):
         sqs = _uci_sq(played_uci)
         if sqs:
             frm, to = sqs
-            pawn_file = frm[0]
-            bullets.append(
-                f"Your move {frm}–{to} loosens the pawn shield around your king; "
-                f"the engine line keeps the king safer by not pushing that pawn."
-            )
+            bullets.append(f"Your move {frm}–{to} loosens the pawn shield around your king.")
+            bullets.append(f"The engine line keeps the king safer by not pushing that pawn.")
         else:
-            bullets.append(
-                "Your move weakens your king’s pawn shield; the engine line keeps the king safer."
-            )
+            bullets.append("Your move weakens your king’s pawn shield; the engine line keeps the king safer.")
 
 
     hung = _top_hanging_piece_details(board_after_played, mover_color)
@@ -1130,33 +1213,65 @@ async def explain_alternate(req: ExplainAlternateRequest):
         moved_piece_name = PIECE_NAME.get(moved_piece.piece_type, "piece") if moved_piece else "piece"
 
         if fixed:
-            bullets.append(
-                f"Your {hung_piece} on {sq_name} was hanging: attacked by the opponent’s {attacker_piece} from {attacker_sq} "
-                f"({a} attacker{'s' if a!=1 else ''} vs {d} defender{'s' if d!=1 else ''}). "
-                f"The best move defends {sq_name} with your {moved_piece_name}."
-            )
+            bullets.append(f"Your {hung_piece} on {sq_name} was hanging: attacked by the opponent’s {attacker_piece} from {attacker_sq}")
+            bullets.append(f"({a} attacker{'s' if a!=1 else ''} vs {d} defender{'s' if d!=1 else ''}).")
+            bullets.append(f"The best move defends {sq_name} with your {moved_piece_name}.")
         else:
-            bullets.append(
-                f"Your {hung_piece} on {sq_name} is hanging: attacked by the opponent’s {attacker_piece} from {attacker_sq} "
-                f"({a} attacker{'s' if a!=1 else ''} vs {d} defender{'s' if d!=1 else ''})."
-            )
+            bullets.append(f"Your {hung_piece} on {sq_name} is hanging: attacked by the opponent’s {attacker_piece} from {attacker_sq}")
+            bullets.append(f"({a} attacker{'s' if a!=1 else ''} vs {d} defender{'s' if d!=1 else ''}).")
+
+    ow_played = _overworked_defender_details(board_after_played, mover_color)
+    ow_best = _overworked_defender_details(board_after_best, mover_color)
+
+    if ow_played and not ow_best:
+        t1, t2 = ow_played["targets"][0], ow_played["targets"][1]
+        bullets.append(f"Relieves an overworked {ow_played['defender_piece_name']} on {ow_played['defender_square']}")
+        bullets.append(f"The piece was defending your {t1['piece_name']} on {t1['square']} and your {t2['piece_name']} on {t2['square']}.")
 
 
-    # HANGING PIECE -> "defends X square with {piece}"
-    hung = _find_most_valuable_hung_piece(board_after_played, mover_color)
-    if hung:
-        sq, piece, attackers, defenders = hung
-        if not _is_hanging_sq(board_after_best, mover_color, sq):
-            square_name = chess.square_name(sq)
-            moved_piece = board_before.piece_at(mv_best.from_square)
-            mover_piece_name = _piece_word(moved_piece) if moved_piece else "piece"
-            bullets.append(f"Defends {square_name} with {mover_piece_name}.")
+    lost_played = detect_lost_tempo(
+    fens=fens,
+    moves_uci=moves_uci,
+    ply=req.ply,
+    board_before=board_before,
+    impact_mover=-0.3,
+    best_move_uci=best_uci,
+    )
+
+    lost_best = detect_lost_tempo(
+        fens=fens,
+        moves_uci=moves_uci,
+        ply=req.ply,
+        board_before=board_before,
+        impact_mover=0.0,
+        best_move_uci=best_uci,
+    )
+
+    if lost_played and not lost_best:
+        mv = chess.Move.from_uci(best_uci)
+        piece = board_before.piece_at(mv.from_square)
+        piece_name = PIECE_NAME.get(piece.piece_type, "piece") if piece else "piece"
+        square_name = chess.square_name(mv.to_square)
+        follow_sq = None
+        pv = best_pv_uci
+        if len(pv) >= 3:
+            mv2 = chess.Move.from_uci(pv[1])
+            follow_sq = chess.square_name(mv2.to_square)
+            
+        if req.ply <= 20:
+            bullets.append(f"Improves the activity of your {piece_name} by moving it to {square_name}.")
+            if follow_sq:
+                bullets.append(f"This prepares further improvement, such as a follow-up move to {follow_sq}.")
+            else:
+                bullets.append("This improves piece coordination without losing tempo.")
+
         else:
-            square_name = chess.square_name(sq)
-            piece_name = _piece_word(piece)
-            bullets.append(f"Improves defense around {square_name} to reduce pressure on your {piece_name}.")
-    else:
-        bullets.append("Improves your position without leaving a major piece hanging.")
+            bullets.append(f"Develops your {piece_name} by placing it on {square_name}.")
+            if follow_sq:
+                bullets.append(f"This allows you to continue development next, for example by playing to {follow_sq}.")
+            else:
+                bullets.append("This keeps your development on track without wasting time.")
+
 
     return {
         "ply": req.ply,
@@ -1351,9 +1466,10 @@ async def explain_move(req: ExplainMoveRequest):
 
     return {
         "ply": req.ply,
-        "played_move_uci": played_move,
-        "played_san": played_san,
-        "best_move_uci": best_move,
+        #"played_move_uci": played_move,
+        "played_move_san": played_san,
+        #"best_move_uci": best_move,
+        "best_move_san": best_san,
         "pv_uci": [m.uci() for m in pv][:8],
         "eval_before": eval_before,
         "eval_after": eval_after,
