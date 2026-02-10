@@ -14,7 +14,8 @@ const initialBoard = [
 
 const FILES = ["a","b","c","d","e","f","g","h"];
 const RANKS = ["8","7","6","5","4","3","2","1"];
-const API = process.env.REACT_APP_API_URL || "https://chess-x7ns.onrender.com";
+//const API = process.env.REACT_APP_API_URL || "https://chess-x7ns.onrender.com";
+const API = "https://chess-x7ns.onrender.com";
 
 const EvalBar = ({ analysis, currentMoveIndex }) => {
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
