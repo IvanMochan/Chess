@@ -46,9 +46,8 @@ function App() {
   const [alternateExplanation, setAlternateExplanation] = useState(null);
 
   const gameReady = Array.isArray(fenList) && fenList.length > 0;
-  // api test
   const API = process.env.REACT_APP_API_URL || "https://chess-x7ns.onrender.com";
-
+  console.log("API:", API)
   const [viewMode, setViewMode] = useState("main");
   const [anchorMoveIndex, setAnchorMoveIndex] = useState(null);
   const [alternateLine, setAlternateLine] = useState({
