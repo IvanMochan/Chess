@@ -72,7 +72,7 @@ const AnalysisPanel = ({
 
               <div className="summary-grid">
                 {[
-                  ["perfect", "Perfect"],
+                  // ["perfect", "Perfect"],
                   ["best", "Best"],
                   ["good", "Good"],
                   ["bad", "Bad"],

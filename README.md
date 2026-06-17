@@ -37,41 +37,14 @@ A web-based chess analysis tool that lets you upload a PGN file, replay the game
 - Chess logic: python-chess
 
 
-## 🚀 How to Run
-
-1. Backend
-
-    Make sure Stockfish and Node.js are installed and accessible.
-    (https://stockfishchess.org/download/)
-    (https://nodejs.org/en/download)
-    
-    Powershell:
-
-        pip install fastapi
-
-        pip install uvicorn
-
-        pip install python-chess
-
-        $env:STOCKFISH_PATH="C:\(path to stockfish)\stockfish-windows-x86-64-avx2.exe"
-
-        uvicorn main:app --reload
-
-2. Frontend
-
-    Bash:
-
-        npm install
-
-        npm start
-
-
 ## 📂 Workflow
 
-1. Upload a PGN file
+1. Visit https://ivanmochan.github.io/Chess/
 
-2. View the game summary
+2. Upload a PGN file
 
-3. Toggle to step-by-step analysis
+3. View the game summary
 
-4. Navigate moves and inspect evaluations & explanations
+4. Toggle to step-by-step analysis
+
+5. Navigate moves and inspect evaluations & explanations
