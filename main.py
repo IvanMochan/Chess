@@ -1272,6 +1272,8 @@ async def explain_alternate(req: ExplainAlternateRequest):
             else:
                 bullets.append("This keeps your development on track without wasting time.")
 
+    if not bullets:
+        bullets.append("This continuation gives you a better position.")
 
     return {
         "ply": req.ply,
@@ -1417,14 +1419,33 @@ async def explain_move(req: ExplainMoveRequest):
             cap_phrase = _tactic_capture_phrase(board_after, pv_opp)
             gives_check = board_after.gives_check(opp_best)
 
+            def enrich_existing_best_reply(extra_text: str):
+                """
+                The generic best-reply bullet is already created above.
+                For bad/blunder moves, add the tactical detail to that same bullet
+                instead of creating a second "After [move]..." bullet.
+                """
+                base_text = f"After {played_san}, opponent’s best reply is {opp_san}"
+                enriched_text = f"{base_text} — {extra_text}."
+
+                for idx, bullet in enumerate(bullets):
+                    normalized_bullet = str(bullet).rstrip(".")
+                    if normalized_bullet == base_text:
+                        bullets[idx] = enriched_text
+                        return
+
+                bullets.append(enriched_text)
+
             if cap_phrase and gives_check:
-                bullets.append(f"After {played_san}, opponent can play {opp_san} — it {cap_phrase[:-1]} and gives check.")
+                cap_text = cap_phrase.rstrip(".")
+                enrich_existing_best_reply(f"it {cap_text} and gives check")
             elif cap_phrase:
-                bullets.append(f"After {played_san}, opponent can play {opp_san} — it {cap_phrase}")
+                cap_text = cap_phrase.rstrip(".")
+                enrich_existing_best_reply(f"it {cap_text}")
             elif gives_check:
-                bullets.append(f"After {played_san}, opponent can play {opp_san} — it gives check.")
+                enrich_existing_best_reply("it gives check")
             else:
-                bullets.append(f"After {played_san}, opponent’s best reply is {opp_san}.")
+                pass
 
             #bullets.append(f"Main line: {_short_pv_san(board_after, pv_opp, plies=4)}")
 
@@ -1437,9 +1458,9 @@ async def explain_move(req: ExplainMoveRequest):
 
             mover_is_white = (fen_before.split(" ")[1] == "w")
             mat_delta = _material_delta_for_mover(board_after, tmp, mover_is_white)
-            if mat_delta != 0:
-                sign = "+" if mat_delta > 0 else ""
-                bullets.append(f"Material change over this line: {sign}{mat_delta}.")
+            #if mat_delta != 0:
+            #    sign = "+" if mat_delta > 0 else ""
+            #    bullets.append(f"Material change over this line: {sign}{mat_delta}.")
 
 
     if best_move and played_move == best_move:

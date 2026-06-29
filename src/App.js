@@ -46,8 +46,8 @@ function App() {
   const [alternateExplanation, setAlternateExplanation] = useState(null);
 
   const gameReady = Array.isArray(fenList) && fenList.length > 0;
-  //const API = process.env.REACT_APP_API_URL || "https://chess-x7ns.onrender.com";
   const API = "https://chess-x7ns.onrender.com";
+  //const API = "http://localhost:8000";
   console.log("API:", API)
   const [viewMode, setViewMode] = useState("main");
   const [anchorMoveIndex, setAnchorMoveIndex] = useState(null);
@@ -90,13 +90,26 @@ function App() {
       const result = await response.json();
 
       if (response.ok) {
+        const nextFens = result.moves || [];
+
         setViewMode("main");
         setAnchorMoveIndex(null);
         setAlternateLine({ fens: [], movesSAN: [], startPly: null, index: 0 });
+        setMainMoveIndex(0);
 
         setGameId(result.game_id);
-        setFenList(result.moves);
+        setFenList(nextFens);
         setMovesSan(result.moves_san || []);
+
+        setAnalysisState({
+          analysisEval: null,
+          analysisBest: null,
+          isAnalyzing: false,
+          analysisError: null,
+          currentMoveIndex: 0,
+          gameReady: nextFens.length > 0,
+          currentFen: nextFens[0] || null,
+        });
 
         setAnalysisStarted(false);
         setGameSummary(null);
