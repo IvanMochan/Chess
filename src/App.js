@@ -24,16 +24,19 @@ function App() {
     if (!next || typeof next !== "object") return;
 
     setAnalysisState((prev) => {
-      const merged = { ...prev, ...next };
+      const merged = {
+        ...prev,
+        analysisEval: next.analysisEval,
+        analysisBest: next.analysisBest,
+        isAnalyzing: next.isAnalyzing,
+        analysisError: next.analysisError,
+      };
 
       const same =
         prev.analysisEval === merged.analysisEval &&
         prev.analysisBest === merged.analysisBest &&
         prev.isAnalyzing === merged.isAnalyzing &&
-        prev.analysisError === merged.analysisError &&
-        prev.currentMoveIndex === merged.currentMoveIndex &&
-        prev.gameReady === merged.gameReady &&
-        prev.currentFen === merged.currentFen;
+        prev.analysisError === merged.analysisError;
 
       return same ? prev : merged;
     });
